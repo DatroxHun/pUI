@@ -39,6 +39,7 @@ public abstract class UIElement
 
     protected float width, height;
     public float roundness = 0;
+    protected PVector mouseTranslate = new PVector(0, 0);
 
     protected Consumer callback;
 
@@ -139,40 +140,79 @@ public abstract class UIElement
         display();
     }
 
+    public void refresh(PVector translate) // display and update
+    {
+        update(translate);
+        display();
+    }
+
+    public void update(PVector translate)
+    {
+        mouseTranslate = translate.copy().mult(-1f);
+        update();
+    }
+
     public abstract void display();
     public abstract void update();
 }
 
 
-// UI group: refresh ui elements at the same time
+// UI group:
+// - refresh ui elements at the same time
+// - has position which is the origo to the ui elements (if it moves all the elements move)
+// - if window scales all elements scale one way or another (need to specify)
 
 public class ElementGroup extends ArrayList<UIElement>
 {
-    public ElementGroup()
+    // properties
+    private PVector position = new PVector(0, 0);
+
+
+    // getters, setters
+    public PVector getPosition()
     {
-        
+        return position.copy();
     }
+
+    public ElementGroup setPosition(float x, float y)
+    {
+        position.set(x, y);
+        return this;
+    }
+
+
+    // constructor(s)
+    public ElementGroup() { }
 
     public ElementGroup(ElementGroup elementGroup)
     {
         super(elementGroup);
+        this.position = elementGroup.getPosition();         
     }
+
 
     // methods that work: add, remove and all the methods of ArrayList
 
+
+    // grouped main methods
     public void display()
     {
+        pushMatrix();
+        translate(position.x, position.y);
+        
         for (UIElement element : this)
         {
             element.display();
         }
+
+        popMatrix();
     }
 
     public void update()
     {
         for (UIElement element : this)
         {
-            element.update();
+            element.update(position);
         }
     }
 
@@ -248,8 +288,10 @@ public class CheckBox extends UIElement
     }
 
     public void update()
-    {
-        if (mousePressed && pointInRect(corner.x, corner.y, this.width, this.height, new PVector(mouseX, mouseY))) pressed = true;
+    {       
+        PVector mouse = new PVector(mouseX, mouseY).add(mouseTranslate);
+
+        if (mousePressed && pointInRect(corner.x, corner.y, this.width, this.height, new PVector(mouse.x, mouse.y))) pressed = true;
         else pressed = false;
 
         if (pressed && !prevPressed)
@@ -373,18 +415,18 @@ public class HorizontalSlider extends Slider
 
     public void update()
     {
-        PVector mousePos = new PVector(mouseX, mouseY);
+        PVector mouse = new PVector(mouseX, mouseY).add(mouseTranslate);
 
         float thumbX = corner.x + roundness * .5f + value * (this.width * (1f - thumbSize) - roundness);
         float thumbY = corner.y;
-        boolean mouseOnThumb = pointInRect(thumbX, thumbY, this.width * thumbSize, this.height, mousePos);
+        boolean mouseOnThumb = pointInRect(thumbX, thumbY, this.width * thumbSize, this.height, mouse);
 
-        if (mousePressed && mouseOnThumb) clicked = new PVector(mouseX - thumbX, mouseY - thumbY);
+        if (mousePressed && mouseOnThumb) clicked = new PVector(mouse.x - thumbX, mouse.y - thumbY);
         else if (!mousePressed && prevPressed) clicked = null;
 
         if (clicked != null)
         {
-            value = map(mouseX - clicked.x, corner.x + roundness * .5f, corner.x + this.width * (1f - thumbSize) - roundness * .5f, 0f, 1f);
+            value = map(mouse.x - clicked.x, corner.x + roundness * .5f, corner.x + this.width * (1f - thumbSize) - roundness * .5f, 0f, 1f);
             value = clamp(value, 0f, 1f);
 
             if (callback != null && prevValue != value)
@@ -456,18 +498,18 @@ public class VerticalSlider extends Slider
 
     public void update()
     {
-        PVector mousePos = new PVector(mouseX, mouseY);
+        PVector mouse = new PVector(mouseX, mouseY).add(mouseTranslate);
 
         float thumbX = corner.x;
         float thumbY = corner.y + roundness * .5f + value * (this.height * (1f - thumbSize) - roundness);
-        boolean mouseOnThumb = pointInRect(thumbX, thumbY, this.width, this.height * thumbSize, mousePos);
+        boolean mouseOnThumb = pointInRect(thumbX, thumbY, this.width, this.height * thumbSize, mouse);
 
-        if (mousePressed && mouseOnThumb) clicked = new PVector(mouseX - thumbX, mouseY - thumbY);
+        if (mousePressed && mouseOnThumb) clicked = new PVector(mouse.x - thumbX, mouse.y - thumbY);
         else if (!mousePressed && prevPressed) clicked = null;
 
         if (clicked != null)
         {
-            value = map(mouseY - clicked.y, corner.y + roundness * .5f, corner.y + this.height * (1f - thumbSize) - roundness * .5f, 0f, 1f);
+            value = map(mouse.y - clicked.y, corner.y + roundness * .5f, corner.y + this.height * (1f - thumbSize) - roundness * .5f, 0f, 1f);
             value = clamp(value, 0f, 1f);
 
             if (callback != null && prevValue != value)

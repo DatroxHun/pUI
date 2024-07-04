@@ -1,11 +1,12 @@
-ElementGroup group = new ElementGroup();
-
-CheckBox checkBox;
+ElementGroup group;
 
 void setup()
 {
     size(1600, 900, P2D);
     frameRate(75);
+
+    group = new ElementGroup();
+    group.setPosition(0, 0); // translation of the whole group
 
     group.add(new CheckBox(new PVector(15, 15), 75f, 10f, true, new Consumer<CheckBox>()
     {
