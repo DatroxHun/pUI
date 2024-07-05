@@ -31,6 +31,14 @@ void setup()
             println(element.getValue());
         }
     }).setThumbColor(color(16, 255, 128)).setASyncCallback(false).setAnchor(TR));
+
+    group.add(new Button(new PVector(width / 2f, height / 2f), 200, 75, 25f, "Press me!", color(32, 64, 8), new Consumer<Button>()
+    {
+        public void accept(Button element)
+        {
+            println("Button has been pressed.");
+        }
+    }).setTint(color(224, 192, 248)).setTextSize(35).setAnchor(MC));
 }
 
 

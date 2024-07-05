@@ -10,10 +10,6 @@ import java.util.function.Consumer;
 //      - activate on pressing enter
 //      - activate when text is changed (async version)
 
-// button:
-// - text
-// - edge roundness
-
 
 // anchor positions:
 //                left , center, right
@@ -42,6 +38,7 @@ public abstract class UIElement
     protected PVector mouseTranslate = new PVector(0, 0);
 
     protected Consumer callback;
+    protected boolean asyncCallback = false;
 
 
     // getters, setters
@@ -101,20 +98,28 @@ public abstract class UIElement
     {
         return this.height;
     }
-    public void setWidth(float width)
+    public UIElement setWidth(float width)
     {
         this.width = width;
         updateCorner();
+        return this;
     }
-    public void setHeight(float height)
+    public UIElement setHeight(float height)
     {
         this.height = height;
         updateCorner();
+        return this;
     }
 
     protected void updateCorner()
     {
         corner.set(position.x - this.width * anchor.x, position.y - this.height * anchor.y);
+    }
+
+    public UIElement setASyncCallback(boolean asyncCallback)
+    {
+        this.asyncCallback = asyncCallback;
+        return this;
     }
 
 
@@ -160,7 +165,7 @@ public abstract class UIElement
 // UI group:
 // - refresh ui elements at the same time
 // - has position which is the origo to the ui elements (if it moves all the elements move)
-// - if window scales all elements scale one way or another (need to specify)
+// - if window scales all elements scale one way or another (need to specify) <--------------------------------------------------------------
 
 public class ElementGroup extends ArrayList<UIElement>
 {
@@ -320,7 +325,6 @@ public abstract class Slider extends UIElement
 
     protected PVector clicked = null;
     protected boolean prevPressed = false;
-    protected boolean asyncCallback = false;
 
     protected color thumbColor = color(128f);
 
@@ -334,12 +338,6 @@ public abstract class Slider extends UIElement
     public Slider setThumbColor(color thumbColor)
     {
         this.thumbColor = thumbColor;
-        return this;
-    }
-
-    public Slider setASyncCallback(boolean asyncCallback)
-    {
-        this.asyncCallback = asyncCallback;
         return this;
     }
 
@@ -535,7 +533,161 @@ public class VerticalSlider extends Slider
     }
 }
 
+
+// button:
+// - text
+// - edge roundness
+
+public class Button extends UIElement
+{
+    // properties
+    private String text;
+    private float textSize = 12; 
+    private color textColor = color(0f);
+    private color tint = color(128f);
+
+    private boolean prevPressed = false;
+    private boolean pressed = false;
+
+    // getters, setters
+    public String getText()
+    {
+        return new String(text);
+    }
+
+    public Button setText(String text)
+    {
+        this.text = new String(text);
+        return this;
+    }
+
+    public float getTextSize()
+    {
+        return textSize;        
+    }
+
+    public Button setTextSize(float textSize)
+    {
+        this.textSize = textSize;
+        return this;
+    }
+
+    public color getTextColor()
+    {
+        return textColor;        
+    }
+
+    public Button setTextColor(color textColor)
+    {
+        this.textColor = textColor;
+        return this;
+    }
+
+    public color getTint()
+    {
+        return tint;        
+    }
+
+    public Button setTint(color tint)
+    {
+        this.tint = tint;
+        return this;
+    }
+
+    // constructor(s)
+    public Button(PVector position, float width, float height, Consumer callback)
+    {
+        super(position, width, height, callback);
+    }
+
+    public Button(PVector position, float width, float height, float roundness, Consumer callback)
+    {
+        super(position, width, height, roundness, callback);
+    }
+
+    public Button(PVector position, float width, float height, float roundness, String text, Consumer callback)
+    {
+        super(position, width, height, roundness, callback);
+        setText(text);
+    }
+
+    public Button(PVector position, float width, float height, float roundness, String text, color textColor, Consumer callback)
+    {
+        this(position, width, height, roundness, text, callback);
+        this.textColor = textColor;
+    }
+
+    // main methods
+    public void display()
+    {
+        color f = getFill();
+
+        if (pressed)
+        {
+            int fr = getRed(f), fg = getGreen(f), fb = getBlue(f);
+            int tr = getRed(tint), tg = getGreen(tint), tb = getBlue(tint);
+            fill(fr * tr / 255f, fg * tg / 255f, fb * tb / 255f);
+        }
+        
+        rect(corner.x, corner.y, this.width, this.height, this.roundness);
+        
+        float tS = getSize();
+
+        fill(textColor);      
+        textSize(textSize);
+        textAlign(CENTER, CENTER);
+        text(text, corner.x, corner.y, this.width, this.height);
+        fill(f);
+        textSize(tS);
+    }
+
+    public void update()
+    {
+        PVector mouse = new PVector(mouseX, mouseY).add(mouseTranslate);
+
+        if (mousePressed && pointInRect(corner.x, corner.y, this.width, this.height, new PVector(mouse.x, mouse.y))) pressed = true;
+        else pressed = false;
+
+        if (pressed && !prevPressed)
+        {
+            if (callback != null)
+            {
+                if (!asyncCallback) callback.accept(this);
+                else
+                {
+                    final Button b = this;
+                    (new Thread()
+                    {
+                        public void run()
+                        {
+                            callback.accept(b);
+                        }
+                    }).run();
+                }
+            }
+        }
+
+        prevPressed = pressed;
+    }
+}
+
+
 // UTILITIES
+
+int getRed(color c)
+{
+    return (c >> 16) & 0xFF;
+}
+
+int getGreen(color c)
+{
+    return (c >> 8) & 0xFF;
+}
+
+int getBlue(color c)
+{
+    return (c >> 0) & 0xFF;
+}
 
 private color getStroke()
 {
@@ -564,6 +716,11 @@ private color getFill()
     int blue  = (fc >>  0) & 0xFF;
 
     return color(red, green, blue, alpha);
+}
+
+private float getSize()
+{
+    return g.textSize;
 }
 
 private boolean pointInRect(float x, float y, float width, float height, PVector point)
